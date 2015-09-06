@@ -1295,7 +1295,7 @@ class LatexPrinter(Printer):
                            (self._print(expr.args[-1].expr),
                             self._print(expr.args[-1].cond)))
         tex = r"\begin{cases} %s \end{cases}"
-        return tex % r" \\".join(ecpairs)
+        return tex % r" \\\\ ".join(ecpairs)
 
     def _print_MatrixBase(self, expr):
         lines = []
