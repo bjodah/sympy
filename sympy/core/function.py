@@ -1428,6 +1428,14 @@ class Derivative(Expr):
         >>> d2fdxdy.as_finite_difference(wrt=x)
         -Derivative(f(x - 1/2, y), y) + Derivative(f(x + 1/2, y), y)
 
+        We can apply ``as_finite_difference`` to ``Derivative`` insatnces in
+        compound expressions using ``replace``:
+
+        >>> (1 + 42**f(x).diff(x)).replace(lambda arg: arg.is_Derivative,
+        ...     lambda arg: arg.as_finite_difference())
+        42**(-f(x - 1/2) + f(x + 1/2)) + 1
+
+
         See also
         ========
 
