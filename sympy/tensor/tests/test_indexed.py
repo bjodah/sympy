@@ -198,6 +198,17 @@ def test_IndexedBase_shape():
     assert F.shape == Tuple(m)
     assert F[i].subs(i, j) == F[j]
     raises(IndexException, lambda: F[i, j])
+    _a, _b = Symbol('a'), Symbol('b')
+    assert b.subs(_a, _b).subs(_b, _a).shape == (m, n)
+
+
+def test_IndexedBase_strides():
+    i, j, m, n = symbols('i j m n', integer=True)
+    A = IndexedBase('A', shape=(m, n), strides=(i, j))
+    assert A.strides == (i, j)
+    _A = Symbol('A')
+    _B = Symbol('B')
+    assert A.subs(_A, _B).subs(_B, _A).strides == (i, j)
 
 
 def test_Indexed_constructor():

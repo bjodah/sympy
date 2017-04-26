@@ -307,6 +307,12 @@ class Indexed(Expr):
     # def free_symbols(self):
     #     return {self.base}
 
+def make_tuple(arg):
+    if is_sequence(arg):
+        return Tuple(*arg)
+    else:
+        return Tuple(arg)
+
 
 class IndexedBase(Expr, NotIterable):
     """Represent the base or stem of an indexed object
@@ -363,8 +369,9 @@ class IndexedBase(Expr, NotIterable):
     is_Symbol = True
     is_symbol = True
     is_Atom = True
+    attributes = {'strides': make_tuple, 'offset': sympify}
 
-    def __new__(cls, label, shape=None, strides=None, offset=None, **kw_args):
+    def __new__(cls, label, shape=None, **kw_args):
         if isinstance(label, string_types):
             label = Symbol(label)
         elif isinstance(label, Symbol):
@@ -372,17 +379,19 @@ class IndexedBase(Expr, NotIterable):
         else:
             label = _sympify(label)
 
-        if is_sequence(shape):
-            shape = Tuple(*shape)
-        elif shape is not None:
-            shape = Tuple(shape)
+        obj_attrs = {}
+        for attr, cb in cls.attributes.items():
+            val = kw_args.pop(attr, None)
+            obj_attrs['_' + attr] = None if val is None else cb(val)
 
-        if is_sequence(strides):
-            strides = Tuple(*strides)
-        elif strides is not None:
-            strides = Tuple(strides)
+        if shape is None:
+            obj = Expr.__new__(cls, label, **kw_args)
+        else:
+            shape = make_tuple(shape)
+            obj = Expr.__new__(cls, label, shape, **kw_args)
 
-        obj = Expr.__new__(cls, label, shape, strides, sympify(offset), **kw_args)
+        obj._shape = shape
+        obj.__dict__.update(obj_attrs)
         return obj
 
     def __getitem__(self, indices, **kw_args):
@@ -423,7 +432,7 @@ class IndexedBase(Expr, NotIterable):
         (2, 1)
 
         """
-        return self.args[1]
+        return self._shape
 
     @property
     def strides(self):
@@ -440,7 +449,7 @@ class IndexedBase(Expr, NotIterable):
 
         """
 
-        return self.args[2]
+        return self._strides
 
     @property
     def offset(self):
@@ -465,7 +474,7 @@ class IndexedBase(Expr, NotIterable):
         'A[l*i + m*j + n*k + o]'
 
         """
-        return self.args[3]
+        return self._offset
 
     @property
     def label(self):
