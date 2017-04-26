@@ -109,7 +109,7 @@ from __future__ import print_function, division
 
 import collections
 
-from sympy.core.sympify import _sympify
+from sympy.core.sympify import sympify, _sympify
 from sympy.functions.special.tensor_functions import KroneckerDelta
 from sympy.core import Expr, Tuple, Symbol, sympify, S
 from sympy.core.compatibility import is_sequence, string_types, NotIterable, range
@@ -364,7 +364,7 @@ class IndexedBase(Expr, NotIterable):
     is_symbol = True
     is_Atom = True
 
-    def __new__(cls, label, shape=None, strides=None, offset=S.Zero, **kw_args):
+    def __new__(cls, label, shape=None, strides=None, offset=None, **kw_args):
         if isinstance(label, string_types):
             label = Symbol(label)
         elif isinstance(label, Symbol):
@@ -382,19 +382,7 @@ class IndexedBase(Expr, NotIterable):
         elif strides is not None:
             strides = Tuple(strides)
 
-        offset = _sympify(offset)
-
-        args = (label,)
-        if shape is not None:
-            args += (shape,)
-        if strides is not None:
-            args += (strides,)
-        if offset is not S.Zero:
-            args += (offset,)
-        obj = Expr.__new__(cls, *args, **kw_args)
-        obj._shape = shape
-        obj._offset = offset
-        obj._strides = strides
+        obj = Expr.__new__(cls, label, shape, strides, sympify(offset), **kw_args)
         return obj
 
     def __getitem__(self, indices, **kw_args):
@@ -425,6 +413,8 @@ class IndexedBase(Expr, NotIterable):
 
         >>> A = IndexedBase('A', shape=(x, y))
         >>> B = IndexedBase('B')
+        >>> B.shape is None
+        True
         >>> i = Idx('i', 2)
         >>> j = Idx('j', 1)
         >>> A[i, j].shape
@@ -433,7 +423,7 @@ class IndexedBase(Expr, NotIterable):
         (2, 1)
 
         """
-        return self._shape
+        return self.args[1]
 
     @property
     def strides(self):
@@ -450,7 +440,7 @@ class IndexedBase(Expr, NotIterable):
 
         """
 
-        return self._strides
+        return self.args[2]
 
     @property
     def offset(self):
@@ -465,6 +455,9 @@ class IndexedBase(Expr, NotIterable):
         >>> from sympy.printing import ccode
         >>> from sympy.tensor import IndexedBase, Idx
         >>> from sympy import symbols
+        >>> B = IndexedBase('B')
+        >>> B.offset is None
+        True
         >>> l, m, n, o = symbols('l m n o', integer=True)
         >>> A = IndexedBase('A', strides=(l, m, n), offset=o)
         >>> i, j, k = map(Idx, 'ijk')
@@ -472,7 +465,7 @@ class IndexedBase(Expr, NotIterable):
         'A[l*i + m*j + n*k + o]'
 
         """
-        return self._offset
+        return self.args[3]
 
     @property
     def label(self):
@@ -660,6 +653,8 @@ class Idx(Expr):
             return self.args[1][1]
         except IndexError:
             return
+
+
 
     def _sympystr(self, p):
         return p.doprint(self.label)

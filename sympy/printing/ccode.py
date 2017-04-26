@@ -170,7 +170,7 @@ class C89CodePrinter(CodePrinter):
 
     def _print_Indexed(self, expr):
         # calculate index for 1d array
-        offset = getattr(expr.base, 'offset', S.Zero)
+        offset = getattr(expr.base, 'offset', S.Zero) or S.Zero
         strides = getattr(expr.base, 'strides', None)
         indices = expr.indices
 
