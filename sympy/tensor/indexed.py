@@ -364,7 +364,7 @@ class IndexedBase(Expr, NotIterable):
     is_symbol = True
     is_Atom = True
 
-    def __new__(cls, label, shape=None, **kw_args):
+    def __new__(cls, label, shape=None, strides=None, offset=S.Zero, **kw_args):
         if isinstance(label, string_types):
             label = Symbol(label)
         elif isinstance(label, Symbol):
@@ -377,13 +377,21 @@ class IndexedBase(Expr, NotIterable):
         elif shape is not None:
             shape = Tuple(shape)
 
-        offset = kw_args.pop('offset', S.Zero)
-        strides = kw_args.pop('strides', None)
+        if is_sequence(strides):
+            strides = Tuple(*strides)
+        elif strides is not None:
+            strides = Tuple(strides)
 
+        offset = _sympify(offset)
+
+        args = (label,)
         if shape is not None:
-            obj = Expr.__new__(cls, label, shape, **kw_args)
-        else:
-            obj = Expr.__new__(cls, label, **kw_args)
+            args += (shape,)
+        if strides is not None:
+            args += (strides,)
+        if offset is not S.Zero:
+            args += (offset,)
+        obj = Expr.__new__(cls, *args, **kw_args)
         obj._shape = shape
         obj._offset = offset
         obj._strides = strides
