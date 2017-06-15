@@ -579,12 +579,21 @@ def default_cse_dummify(exprs):
     dummies: dictionary mapping Dummy instances to previous Floats
 
     """
-    new_exprs = []
     dummies = {}
-    for expr in exprs:
-        nexpr, subs = expr.replace(lambda arg: arg.is_Float, lambda arg: Dummy(), map=True)
-        new_exprs.append(nexpr)
-        dummies.update(subs)
+
+    def _replace(expr, dummies):
+        if expr in dummies:
+            return dummies[expr]
+        elif expr.is_Function and expr.nargs == {1}:
+            dummy = Dummy()
+            dummies[expr] = dummy
+            return dummy
+        elif expr.is_Atom:
+            return expr
+        else:
+            return expr.fromiter(map(lambda arg: _replace(arg, dummies), expr.args))
+
+    new_exprs = [_replace(expr, dummies) for expr in exprs]
     return new_exprs, {v: k for k, v in dummies.items()}
 
 

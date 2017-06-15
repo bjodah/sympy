@@ -519,3 +519,4 @@ def test_cse_dummify():
          2*exp(x[11]) + exp(x[12]) + exp(x[13]) + exp(x[5]) + exp(x[6]) + exp(x[7]) + exp(x[8]) + exp(x[9]))
     ]
     subst, red = cse(exprs, dummify=True)
+    assert [e.subs(reversed(subst)) for e in red] == exprs
