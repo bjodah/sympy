@@ -3,8 +3,10 @@
 from __future__ import print_function, division
 
 from sympy.core import Basic, Mul, Add, Pow, sympify, Symbol, Tuple, igcd
+from sympy.core.basic import preorder_traversal
 from sympy.core.numbers import Integer
 from sympy.core.singleton import S
+from sympy.core.symbol import Dummy
 from sympy.core.function import _coeff_isneg
 from sympy.core.exprtools import factor_terms
 from sympy.core.compatibility import iterable, range, as_int
@@ -564,8 +566,30 @@ def tree_cse(exprs, symbols, opt_subs=None, order='canonical', ignore=()):
     return replacements, reduced_exprs
 
 
+def default_cse_dummify(exprs):
+    """ Replaces Float instances with Dummy instances
+
+    Parameters
+    ----------
+    exprs : iterable of expressions
+
+    Returns
+    -------
+    new_exprs: list of new expressions
+    dummies: dictionary mapping Dummy instances to previous Floats
+
+    """
+    new_exprs = []
+    dummies = {}
+    for expr in exprs:
+        nexpr, subs = expr.replace(lambda arg: arg.is_Float, lambda arg: Dummy(), map=True)
+        new_exprs.append(nexpr)
+        dummies.update(subs)
+    return new_exprs, {v: k for k, v in dummies.items()}
+
+
 def cse(exprs, symbols=None, optimizations=None, postprocess=None,
-        order='canonical', ignore=()):
+        order='canonical', ignore=(), dummify=False):
     """ Perform common subexpression elimination on an expression.
 
     Parameters
@@ -596,6 +620,10 @@ def cse(exprs, symbols=None, optimizations=None, postprocess=None,
         concern, use the setting order='none'.
     ignore : iterable of Symbols
         Substitutions containing any Symbol from ``ignore`` will be ignored.
+    dummify : bool or callback
+        Applies a function to replace certain nodes with dummies during CSE
+        extraction. When ``True`` it will use ``default_cse_dummify``.
+        Dummies are resubstituted before postprocess is applied.
 
     Returns
     =======
@@ -644,6 +672,13 @@ def cse(exprs, symbols=None, optimizations=None, postprocess=None,
     # Handle the case if just one expression was passed.
     if isinstance(exprs, (Basic, MatrixBase)):
         exprs = [exprs]
+
+    if dummify is True:
+        dummify = default_cse_dummify
+    if dummify:
+        exprs, dummies = dummify(exprs)
+    else:
+        dummies = None
 
     copy = exprs
     temp = []
@@ -705,6 +740,10 @@ def cse(exprs, symbols=None, optimizations=None, postprocess=None,
             if isinstance(e, ImmutableSparseMatrix):
                 m = m.as_immutable()
             reduced_exprs[i] = m
+
+    if dummies:
+        replacements = [(sym, subtree.xreplace(dummies)) for sym, subtree in replacements]
+        reduced_exprs = [expr.xreplace(dummies) for expr in reduced_exprs]
 
     if postprocess is None:
         return replacements, reduced_exprs
