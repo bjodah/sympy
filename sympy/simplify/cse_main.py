@@ -584,7 +584,7 @@ def default_cse_dummify(exprs):
     def _replace(expr, dummies):
         if expr in dummies:
             return dummies[expr]
-        elif expr.is_Function and expr.nargs == {1}:
+        elif (expr.is_Function and expr.nargs == {1}) or expr.is_Float:
             dummy = Dummy()
             dummies[expr] = dummy
             return dummy
