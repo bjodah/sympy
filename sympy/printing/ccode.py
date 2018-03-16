@@ -501,7 +501,7 @@ class C89CodePrinter(CodePrinter):
         else:
             raise NotImplementedError("Unknown type of var: %s" % type(var))
         if val != None:
-            result += ' = %s' % self._print(val, **kwargs)
+            result += ' = %s;' % self._print(val, **kwargs)
         return result
 
     def _print_Float(self, flt, **kwargs):
@@ -559,13 +559,13 @@ class C89CodePrinter(CodePrinter):
     def _print_FunctionPrototype(self, expr, **kwargs):
         pars = ', '.join(map(lambda arg: self._print(Declaration(arg), **kwargs),
                              expr.parameters))
-        return "%s %s(%s)" % (
+        return "%s %s(%s);" % (
             tuple(map(lambda arg: self._print(arg, **kwargs),
                       (expr.return_type, expr.name))) + (pars,)
         )
 
     def _print_FunctionDefinition(self, expr, **kwargs):
-        return "%s%s" % (self._print_FunctionPrototype(expr, **kwargs),
+        return "%s\b%s" % (self._print_FunctionPrototype(expr, **kwargs),
                          self._print_Scope(expr, **kwargs))
 
     def _print_Return(self, expr, **kwargs):
