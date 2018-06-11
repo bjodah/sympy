@@ -349,6 +349,9 @@ def test_func_deriv():
     assert Derivative(f(x, y), y, x).args[1:] == ((y, 1), (x, 1))
     assert (Derivative(f(x, y), x, y) - Derivative(f(x, y), y, x)).doit() == 0
 
+    lnx = log(x)
+    assert Derivative(f(x), lnx).doit()/x - f(x).diff() == 0
+
 
 def test_suppressed_evaluation():
     a = sin(0, evaluate=False)

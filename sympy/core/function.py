@@ -1427,8 +1427,19 @@ class Derivative(Expr):
         expr = self.expr
         if hints.get('deep', True):
             expr = expr.doit(**hints)
+        variables = []
+        factor = 1
+        for wrt, count in self.variable_count:
+            if wrt.is_Atom or len(wrt.free_symbols) != 1:
+                variables.append(wrt)
+            else:
+                inner, = wrt.free_symbols
+                dder = wrt.diff(inner, count)  # self.func(expr, wrt).doit()
+                factor /= dder
+                variables.append(inner)
+
         hints['evaluate'] = True
-        return self.func(expr, *self.variable_count, **hints)
+        return factor*self.func(expr, *variables, **hints)
 
     @_sympifyit('z0', NotImplementedError)
     def doit_numerically(self, z0):
