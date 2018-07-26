@@ -40,6 +40,7 @@ $ACTIVITIES = [
     'test_tarball34',
     'test_tarball35',
     'test_tarball36',
+    'test_tarball37',
     'print_authors',
     'md5',
     # 'tag',
@@ -68,9 +69,11 @@ def mailmap_update():
 
 @activity
 def test_sympy():
-    with run_in_conda_env(['mpmath', 'matplotlib', 'numpy', 'scipy', 'theano',
+    with run_in_conda_env(['mpmath', 'matplotlib>=2.2', 'numpy', 'scipy', 'theano',
         'ipython', 'gmpy2', 'fastcache', 'symengine', 'libgfortran', 'libgcc',
-        'gcc', 'cython', 'tensorflow=0.12', 'llvmlite'], 'sympy-tests'):
+        'gcc', 'cython', 'tensorflow', 'llvmlite', 'wurlitzer', 'autowrap',
+        'python-symengine=0.3.*', 'numexpr', 'antlr-python-runtime>=4.7,<4.8',
+        'antlr>=4.7,<4.8'], 'sympy-tests'):
 
         ./setup.py test
 
@@ -619,7 +622,7 @@ See https://github.com/sympy/sympy/wiki/release-notes-for-{shortversion} for the
 {htmltable}
 
 **Note**: Do not download the **Source code (zip)** or the **Source code (tar.gz)**
-files below.
+files above.
 """
     out = out.format(shortversion=shortversion, htmltable=htmltable)
     print(blue("Here are the release notes to copy into the GitHub release "

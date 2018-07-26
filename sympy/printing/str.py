@@ -167,6 +167,9 @@ class StrPrinter(Printer):
     def _print_GoldenRatio(self, expr):
         return 'GoldenRatio'
 
+    def _print_TribonacciConstant(self, expr):
+        return 'TribonacciConstant'
+
     def _print_ImaginaryUnit(self, expr):
         return 'I'
 
