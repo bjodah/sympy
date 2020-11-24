@@ -167,7 +167,7 @@ _lambdify_generated_counter = 1
 
 @doctest_depends_on(modules=('numpy', 'tensorflow', ), python_version=(3,))
 def lambdify(args: iterable, expr, modules=None, printer=None, use_imps=True,
-             dummify=False):
+             dummify=False, use_numba=False, apply_cse=False, rewrite=False):
     """Convert a SymPy expression into a function that allows for fast
     numeric evaluation.
 
@@ -836,7 +836,7 @@ def lambdify(args: iterable, expr, modules=None, printer=None, use_imps=True,
     if _module_present('tensorflow', namespaces):
         funcprinter = _TensorflowEvaluatorPrinter(printer, dummify)
     else:
-        funcprinter = _EvaluatorPrinter(printer, dummify)
+        funcprinter = _EvaluatorPrinter(printer, dummify, apply_cse=apply_cse, rewrite=rewrite)
     funcstr = funcprinter.doprint(funcname, args, expr)
 
     # Collect the module imports from the code printers.
@@ -885,7 +885,11 @@ def lambdify(args: iterable, expr, modules=None, printer=None, use_imps=True,
         "Imported modules:\n\n"
         "{imp_mods}"
         ).format(sig=sig, expr=expr_str, src=funcstr, imp_mods='\n'.join(imp_mod_lines))
-    return func
+    if use_numba:
+        import numba
+        return numba.jit(func)
+    else:
+        return func
 
 def _module_present(modname, modlist):
     if modname in modlist:
@@ -1025,8 +1029,10 @@ def lambdastr(args, expr, printer=None, dummify=None):
     return "lambda %s: (%s)" % (args, expr)
 
 class _EvaluatorPrinter:
-    def __init__(self, printer=None, dummify=False):
+    def __init__(self, printer=None, dummify=False, *, apply_cse=False, rewrite=False):
         self._dummify = dummify
+        self.apply_cse = apply_cse
+        self.rewrite = rewrite
 
         #XXX: This has to be done here because of circular imports
         from sympy.printing.lambdarepr import LambdaPrinter
@@ -1079,8 +1085,13 @@ class _EvaluatorPrinter:
         funcbody.extend(self._print_funcargwrapping(funcargs))
 
         funcbody.extend(unpackings)
-
-        funcbody.append('return ({})'.format(self._exprrepr(expr)))
+        if self.apply_cse:
+            red, cses = cse(expr)
+            for tmp, subexpr in cses:
+                funcbody.append("%s = %s" % (tmp, subexpr))
+            funcbody.append('return ({})'.format(self._exprrepr(red)))
+        else:
+            funcbody.append('return ({})'.format(self._exprrepr(expr)))
 
         funclines = [funcsig]
         funclines.extend('    ' + line for line in funcbody)
