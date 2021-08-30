@@ -16,7 +16,7 @@ from typing import Any, Dict, Tuple
 from functools import wraps
 from itertools import chain
 
-from sympy.core import S
+from sympy.core import S, Float
 from sympy.codegen.ast import (
     Assignment, Pointer, Variable, Declaration, Type,
     real, complex_, integer, bool_, float32, float64, float80,
@@ -328,6 +328,12 @@ class C89CodePrinter(CodePrinter):
 
     def _print_Idx(self, expr):
         return self._print(expr.label)
+
+    def _print_Integer(self, arg):
+        if abs(arg) > 2**(self.type_aliases[real].nmant+1):
+            return self._print(arg.evalf(self.type_aliases[real].decimal_dig))
+        else:
+            return super()._print_Integer(arg)
 
     @_as_macro_if_defined
     def _print_NumberSymbol(self, expr):

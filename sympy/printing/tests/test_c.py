@@ -114,6 +114,19 @@ def test_ccode_Rational():
 def test_ccode_Integer():
     assert ccode(Integer(67)) == "67"
     assert ccode(Integer(-1)) == "-1"
+    assert ccode(Integer(2**53)) == "9007199254740992"
+
+    # 2**54 may give compiler warning "too big integer literal" (18014398509481984)
+    twoPow54 = ccode(Integer(2**54))
+    assert '.' in twoPow54
+    assert twoPow54.replace('.', '').startswith("1801439850948198")
+
+    f32_printer = C99CodePrinter(dict(type_aliases={real: float32}))
+    f32_printer.doprint(2**24) == "16777216"
+    twoPow25 = f32_printer.doprint(2**25)
+    assert '.' in twoPow25
+    assert twoPow25.replace('.', '').startswith("33554432")
+    assert twoPow25.lower().endswith('f')
 
 
 def test_ccode_functions():
