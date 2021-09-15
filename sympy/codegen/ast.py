@@ -1838,3 +1838,7 @@ class FunctionCall(Token, Expr):
 
     _construct_name = String
     _construct_function_args = staticmethod(lambda args: Tuple(*args))
+
+
+class Remainder(Token):
+    __slots__ = ('numerator', 'denominator')

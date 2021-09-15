@@ -26,7 +26,7 @@ import string
 from sympy.codegen.ast import (
     Assignment, Declaration, Pointer, value_const,
     float32, float64, float80, complex64, complex128, int8, int16, int32,
-    int64, intc, real, integer,  bool_, complex_
+    int64, intc, real, integer,  bool_, complex_, Remainder
 )
 from sympy.codegen.fnodes import (
     allocatable, isign, dsign, cmplx, merge, literal_dp, elemental, pure,
@@ -308,18 +308,24 @@ class FCodePrinter(CodePrinter):
         else:
             return CodePrinter._print_Function(self, expr.func(*args))
 
+    def _print_Remainder(self, expr):
+        num, denom = expr.args
+        return "mod({}, {})".format(self._print(num), self._print(denom))
+
     def _print_Mod(self, expr):
         # NOTE : Fortran has the functions mod() and modulo(). modulo() behaves
         # the same wrt to the sign of the arguments as Python and SymPy's
         # modulus computations (% and Mod()) but is not available in Fortran 66
         # or Fortran 77, thus we raise an error.
-        if self._settings['standard'] in [66, 77]:
+        num, denom = expr.args
+        if self._settings['standard'] == 66:  # are we really targeting Fortran 66?
             msg = ("Python % operator and SymPy's Mod() function are not "
                    "supported by Fortran 66 or 77 standards.")
             raise NotImplementedError(msg)
+        elif self._settings['standard'] == 77:
+            return self._print(Remainder(Remainder(num, denom) + denom, denom))
         else:
-            x, y = expr.args
-            return "      modulo({}, {})".format(self._print(x), self._print(y))
+            return "modulo({}, {})".format(self._print(x), self._print(y))
 
     def _print_ImaginaryUnit(self, expr):
         # purpose: print complex numbers nicely in Fortran.

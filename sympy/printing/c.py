@@ -70,6 +70,7 @@ known_functions_C99 = dict(known_functions_C89, **{
     "atanh": "atanh",
     "erf": "erf",
     "gamma": "tgamma",
+    "Remainder": "remainder",
 })
 
 # These are the core reserved words in the C language. Taken from:
@@ -289,6 +290,14 @@ class C89CodePrinter(CodePrinter):
         else:
             return '%spow%s(%s, %s)' % (self._ns, suffix, self._print(expr.base),
                                    self._print(expr.exp))
+
+    def _print_Remainder(self, expr):
+        num, den = expr.args
+        if num.is_integer and den.is_integer:
+            snum, sden = [self.parenthesize(arg, PREC) for arg in expr.args]
+            return f"{snum} % {sden}"
+        return self._print_math_func(expr, known='remainder')
+
 
     def _print_Mod(self, expr):
         num, den = expr.args
@@ -672,6 +681,7 @@ class C99CodePrinter(C89CodePrinter):
         return 'NAN'
 
     # tgamma was already covered by 'known_functions' dict
+
 
     @requires(headers={'math.h'}, libraries={'m'})
     @_as_macro_if_defined
