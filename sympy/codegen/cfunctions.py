@@ -518,7 +518,7 @@ class hypot(Function):
         Returns the first derivative of this function.
         """
         if argindex in (1, 2):
-            return 2*self.args[argindex-1]/(_Two*self.func(*self.args))
+            return self.args[argindex-1]/self.func(*self.args)
         else:
             raise ArgumentIndexError(self, argindex)
 

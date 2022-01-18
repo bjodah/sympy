@@ -30,6 +30,7 @@ def test_expm1():
     # Diff
     assert expm1(42*x).diff(x) - 42*exp(42*x) == 0
     assert expm1(42*x).diff(x) - expm1(42*x).expand(func=True).diff(x) == 0
+    assert expm1(log1p(3**x)).diff(x) - (exp(log(3**x+1))-1).diff(x) == 0
 
 
 def test_log1p():

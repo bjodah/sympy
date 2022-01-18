@@ -71,3 +71,8 @@ def test_cxxcode_nested_minmax():
         == 'std::max(std::min(u, v), std::min(x, y))'
     assert cxxcode(Min(Max(x, y), Max(u, v))) \
         == 'std::min(std::max(u, v), std::max(x, y))'
+
+def test_BoostCodePrinter():
+    p = BoostCodePrinter()
+    p.doprint(powm1(x,y)) == "boost::math::powm1(x, y)"
+    p.doprint(sqrt1pm1(x)) == "boost::math::sqrt1pm1(x)"

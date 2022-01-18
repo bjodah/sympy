@@ -167,3 +167,8 @@ cxx_code_printers = {
     'c++11': CXX11CodePrinter,
     'c++17': CXX17CodePrinter
 }
+
+class BoostCodePrinter(_CXXCodePrinterBase):
+    @requires(headers={'boost/math/special_functions/powm1.hpp'})
+    def _print_powm1(self, expr):
+        return 'boost::math::powm1(%s, %s)' % tuple(map(self._print, expr.args))

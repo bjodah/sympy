@@ -520,6 +520,7 @@ _known_functions_mpmath = dict(_in_mpmath, **{
     'bessely': 'bessely',
     'besseli': 'besseli',
     'besselk': 'besselk',
+    'powm1': 'powm1',
 })
 _known_constants_mpmath = {
     'Exp1': 'e',

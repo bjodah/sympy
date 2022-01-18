@@ -12,12 +12,13 @@ from sympy.external import import_module
 from sympy.printing.codeprinter import ccode
 from sympy.codegen.matrix_nodes import MatrixSolve
 from sympy.codegen.cfunctions import log2, exp2, expm1, log1p
+from sympy.codegen.functions import powm1, sqrt1pm1
 from sympy.codegen.numpy_nodes import logaddexp, logaddexp2
 from sympy.codegen.scipy_nodes import cosm1
 from sympy.codegen.rewriting import (
     optimize, cosm1_opt, log2_opt, exp2_opt, expm1_opt, log1p_opt, optims_c99,
     create_expand_pow_optimization, matinv_opt, logaddexp_opt, logaddexp2_opt,
-    optims_numpy, sinc_opts, FuncMinusOneOptim
+    optims_numpy, powm1_opt, sinc_opts, sqrt1pm1_opt, FuncMinusOneOptim
 )
 from sympy.testing.pytest import XFAIL, skip
 from sympy.utilities._compilation import compile_link_import_strings, has_c
@@ -192,6 +193,19 @@ def test_expm1_cosm1_mixed():
     expr1 = exp(x) + cos(x) - 2
     opt1 = optimize(expr1, [expm1_opt, cosm1_opt])
     assert opt1 == cosm1(x) + expm1(x)
+
+def test_powm1_opt():
+    x, y = Symbol('x'), Symbol('y')
+    expr1 = x**y - 1
+    opt1 = optimize(expr1, [powm1_opt])
+    assert opt1 == powm1(x, y)
+
+def test_sqrt1pm1_opt():
+    x = Symbol('x')
+    expr1 = sqrt(x+1) - 1
+    opt1 = optimize(expr1, [sqrt1pm1_opt])
+    assert opt1 == sqrt1pm1(x)
+
 
 
 def test_log1p_opt():

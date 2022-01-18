@@ -274,6 +274,8 @@ class FuncMinusOneOptim(ReplaceOptim):
 
 expm1_opt = FuncMinusOneOptim(exp, expm1)
 cosm1_opt = FuncMinusOneOptim(cos, cosm1)
+powm1_opt = FuncMinusOneOptim(Pow, powm1, arity=2)
+sqrt1pm1 = FuncMinusOneOptim(sqrt, sqrt1pm1, inner_plus_one=True)
 
 log1p_opt = ReplaceOptim(
     lambda e: isinstance(e, log),
