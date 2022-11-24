@@ -15,7 +15,7 @@ from sympy.codegen.cfunctions import log2, exp2, expm1, log1p
 from sympy.codegen.numpy_nodes import logaddexp, logaddexp2
 from sympy.codegen.scipy_nodes import cosm1, powm1
 from sympy.codegen.rewriting import (
-    optimize, cosm1_opt, log2_opt, exp2_opt, expm1_opt, log1p_opt, powm1_opt, optims_c99,
+    FuncOfArgPlusOneOptim, optimize, cosm1_opt, log2_opt, exp2_opt, expm1_opt, log1p_opt, powm1_opt, optims_c99,
     create_expand_pow_optimization, matinv_opt, logaddexp_opt, logaddexp2_opt,
     optims_numpy, optims_scipy, sinc_opts, FuncMinusOneOptim
 )
@@ -27,6 +27,16 @@ from sympy.utilities._compilation.util import may_xfail
 cython = import_module('cython')
 numpy = import_module('numpy')
 scipy = import_module('scipy')
+
+
+def coalesce_number_terms_evalf(add_, **kwargs):
+    if not add_.is_add:
+        raise ValueError("Expected that add_.is_add is True")
+
+    non_number_terms = [a for a in add_.args if not a.is_number]
+    number_terms = [a for a in add_.args if a.is_number]
+    coalesced_float = add_.func(*number_terms).evalf(**kwargs)
+    return add_.func(*non_number_terms, coalesced_float)
 
 
 def test_log2_opt():
@@ -197,18 +207,19 @@ def test_expm1_cosm1_mixed():
     assert opt1 == cosm1(x) + expm1(x)
 
 
-def _check_num_lambdify(expr, opt, val_subs, approx_ref, lambdify_kw=None, poorness=1e10):
+def _check_num_lambdify(expr, opt, val_subs, fp_ref, check_fp_ref=1, lambdify_kw=None, poorness=1e10):
     """ poorness=1e10 signifies that `expr` loses precision of at least ten decimal digits. """
-    num_ref = expr.subs(val_subs).evalf()
     eps = numpy.finfo(numpy.float64).eps
-    assert abs(num_ref - approx_ref) < approx_ref*eps
+    if check_fp_ref:
+        sym_ref = expr.subs(val_subs).evalf()
+        assert abs(sym_ref - fp_ref) < fp_ref*eps*check_fp_ref
     f1 = lambdify(list(val_subs.keys()), opt, **(lambdify_kw or {}))
     args_float = tuple(map(float, val_subs.values()))
-    num_err1 = abs(f1(*args_float) - approx_ref)
-    assert num_err1 < abs(num_ref*eps)
+    num_err1 = abs(f1(*args_float) - fp_ref)
+    assert num_err1 < abs(fp_ref*eps)
     f2 = lambdify(list(val_subs.keys()), expr, **(lambdify_kw or {}))
-    num_err2 = abs(f2(*args_float) - approx_ref)
-    assert num_err2 > abs(num_ref*eps*poorness)   # this only ensures that the *test* works as intended
+    num_err2 = abs(f2(*args_float) - fp_ref)
+    assert num_err2 > abs(fp_ref*eps*poorness)   # this only ensures that the *test* works as intended
 
 
 def test_cosm1_apart():
@@ -236,12 +247,16 @@ def test_cosm1_apart():
 def test_powm1():
     args = x, y = map(Symbol, "xy")
 
+    # 1. Simplest substition
     expr1 = x**y - 1
     opt1 = optimize(expr1, [powm1_opt])
     assert opt1 == powm1(x, y)
     for arg in args:
         assert expr1.diff(arg) == opt1.diff(arg)
-    if scipy and tuple(map(int, scipy.version.version.split('.')[:3])) >= (1, 10, 0):
+
+    have_scipy_1_10plus = scipy and tuple(map(int, scipy.version.version.split('.')[:3])) >= (1, 10, 0)
+
+    if have_scipy_1_10plus:
         subs1_a = {x: Rational(*(1.0+1e-13).as_integer_ratio()), y: pi}
         ref1_f64_a = 3.139081648208105e-13
         _check_num_lambdify(expr1, opt1, subs1_a, ref1_f64_a, lambdify_kw=dict(modules='scipy'), poorness=10**11)
@@ -249,6 +264,38 @@ def test_powm1():
         subs1_b = {x: pi, y: Rational(*(1e-10).as_integer_ratio())}
         ref1_f64_b = 1.1447298859149205e-10
         _check_num_lambdify(expr1, opt1, subs1_b, ref1_f64_b, lambdify_kw=dict(modules='scipy'), poorness=10**9)
+
+    # 2. A slightly more complicated expressions where powm1 is advantageous.
+    small = 1/(1000+x**2)
+    expr2 = (1+small)**small - 1
+    opt2 = optimize(expr2, [powm1_opt])
+    assert opt2.func == powm1
+
+    if have_scipy_1_10plus:
+        for xval in [100, 1000, 10000]:
+            small_val = 1/(1000+xval**2)
+            fp_base = (1.0 + small_val).as_integer_ratio()
+            fp_expo = small_val.as_integer_ratio()
+            fp_ref = (Rational(*fp_base)**Rational(*fp_expo)-1).evalf()
+            _check_num_lambdify(expr2, opt2, {x: xval}, fp_ref, check_fp_ref=3000 if xval == 100 else 0, lambdify_kw=dict(modules='scipy'), poorness=10**4*xval)
+
+
+    # 3. A test which excercises the opportunistic feature of FuncMinusOneOptim:
+    approx_pi = Rational(*float(pi).as_integer_ratio())
+    expr3 = pi*x**(3*y) - approx_pi
+    opt3 = optimize(expr3, [powm1_opt])
+    assert opt3.has(powm1)
+
+    # Without the next line we get catastrophic cancellation between pi & approx_pi
+    # and we will loose ~9 decimal digits of significance in the numerical result.
+    opt3 = opt3.replace(lambda e: e.is_Add, coalesce_number_terms_evalf)
+
+    if have_scipy_1_10plus:
+        for xval, yval in [(1+1e-9, 1e-3), (1+1e-4, 1e-8), (1+1e-6, 1e-9)]:
+            x_fp = Rational(*xval.as_integer_ratio())
+            y_fp = Rational(*yval.as_integer_ratio())
+            fp_ref = float((pi*x_fp**(3*y_fp) - approx_pi).evalf())
+            _check_num_lambdify(expr3, opt3, {x: xval, y: yval}, fp_ref, check_fp_ref=2*10**14, lambdify_kw=dict(modules='scipy'), poorness=10**8)
 
 
 def test_log1p_opt():
@@ -268,9 +315,19 @@ def test_log1p_opt():
     assert log1p(2*x) - opt3 == 0
     assert opt3.rewrite(log) == expr3
 
+    log1p_opt_non_opportunistic = FuncOfArgPlusOneOptim(log, log1p, opportunistic=False)
     expr4 = log(x+3)
-    opt4 = optimize(expr4, [log1p_opt])
+    opt4 = optimize(expr4, [log1p_opt_non_opportunistic])
     assert str(opt4) == 'log(x + 3)'
+    opt1b = optimize(expr1, [log1p_opt_non_opportunistic])
+    assert str(opt1b) == 'log1p(x)'
+
+    small = Rational(1, 10**30)
+    little_more_than_one = 1 + small
+    expr5 = log(x + little_more_than_one)
+    opt5 = optimize(expr5, [log1p_opt])
+    assert opt5.func == log1p
+    assert opt5 == log1p(x + small)
 
 
 def test_optims_c99():
@@ -317,6 +374,14 @@ def test_optims_c99():
     expr8 = log(2*x + 3)
     opt8 = optimize(expr8, optims_c99)
     assert opt8 == expr8
+
+
+def test_optims_c99_precision():
+    x, y = [Symbol(_, real=True) for _ in  "xy"]
+    expr1 = (1+x)**y - 1
+    opt1 = optimize(expr1, optims_c99)
+    assert opt1 == expm1(log1p(x)*y)
+
 
 
 def test_create_expand_pow_optimization():
@@ -417,7 +482,6 @@ def test_optims_numpy_TODO():
         log(x*y)*sin(x*y)*log(x*y+1)/(log(2)*x*y): log2(x*y)*sinc(x*y)*log1p(x*y),
         exp(x*sin(y)/y) - 1: expm1(x*sinc(y))
     })
-
 
 @may_xfail
 def test_compiled_ccode_with_rewriting():

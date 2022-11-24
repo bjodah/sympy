@@ -276,12 +276,121 @@ expm1_opt = FuncMinusOneOptim(exp, expm1)
 cosm1_opt = FuncMinusOneOptim(cos, cosm1)
 powm1_opt = FuncMinusOneOptim(Pow, powm1)
 
-log1p_opt = ReplaceOptim(
-    lambda e: isinstance(e, log),
-    lambda l: expand_log(l.replace(
-        log, lambda arg: log(arg.factor())
-    )).replace(log(_u+1), log1p(_u))
-)
+
+def _pow_of_add(e):
+    return e.is_Pow and e.base.is_Add
+
+
+class FuncOfArgPlusOneOptim(Optimization):
+    """Specialization of ReplaceOptim for functions evaluating "f(x+1)".
+
+    Explanation
+    ===========
+
+    Numerical functions which go toward zero as x go toward one is often best
+    implemented by a dedicated function in order to avoid catastrophic
+    cancellation. One such example is ``log1p(x)`` in the C standard library
+    which evaluates ``log(x+1)``. Such functions preserves many more
+    significant digits when its argument is close to zero, compared
+    to evaluating the original function at approximately one.
+
+    Parameters
+    ==========
+
+    func :
+        The function which which has one added to its argument.
+    func1p :
+        The specialized function evaluating ``func(x+1)``.
+    opportunistic : bool
+        When ``True``, apply the transformation as long as the magnitude of the
+        remaining number terms of the argument decreases. When ``False``, only apply the
+        transformation if it completely eliminates the number term in the argument.
+
+    Examples
+    ========
+
+    >>> from sympy import symbols, log
+    >>> from sympy.codegen.rewriting import FuncOfArgPlusOneOptim
+    >>> from sympy.codegen.cfunctions import log1p
+    >>> x, y = symbols('x y')
+    >>> my_log1p_opt = FuncMinusOneOptim(log, log1p)
+    >>> my_log1p_opt(log(x+1) + 3*log(10*y+2) - 4)
+    log1p(x) + 3*(log1p(5*y)+log(2)) - 4
+
+
+    """
+
+    def __init__(self, func, func1p, *alt_forms, opportunistic=True
+                 #, strict=True
+                 , **kwargs):
+        # if strict:
+        #     if func.nargs != 1:
+        #         raise ValueError("func needs to be a unary function (strict=False disables this check).")
+        #     if func1p.nargs != 1:
+        #         raise ValueError("func1p needs to be a unary function (strict=False disables this check).")
+        #     d = Dummy()
+        #     if func1p(d).rewrite(func) != func(d + 1):
+        #         raise ValueError("func1p not exactly rewritable as func (strict=False disables this check).")
+        weight = 10  # <-- this is an arbitrary number (heuristic)
+        # super().__init__(lambda e: isinstance(e, func) and e.args[0].is_Add or _pow_of_add(e), self.replace_in_Add,
+        #                  cost_function=lambda expr: expr.count_ops() - weight*expr.count(func1p))
+        super().__init__(**kwargs)
+        self.func = func
+        self.func1p = func1p
+        self.alt_forms = alt_forms
+        self.opportunistic = opportunistic
+
+    def query(self, e):
+        if isinstance(e, self.func) and e.args[0].is_Add:
+            return True
+        for alt, getarg, _anti, _tform in self.alt_forms:
+            if isinstance(e, alt) and getarg(e).is_Add:
+                return True
+        return False
+
+    def replace_in_args(self, e):
+        e = expand_log(e.replace(log, lambda arg: log(arg.factor())))
+        if not (isinstance(e, self.func) and e.args[0].is_Add):
+            return self(e)
+        numbers, other = sift(e.args[0].args, lambda arg: arg.is_number, binary=True)
+        numsum = sum(numbers)
+        if self.opportunistic:
+            do_substitute = abs(numsum-1) < abs(numsum)
+        else:
+            do_substitute = numsum-1 == 0
+        if do_substitute:
+            numsum -= 1
+            return self.func1p(numsum + sum(other))
+        else:
+            return e
+        #return e.replace(log(_u+1), log1p(_u))
+
+    def value(self, e):
+        if isinstance(e, self.func) and e.args[0].is_Add:
+            return self.replace_in_args(e)
+        for alt, getarg, anti, tform in self.alt_forms:
+            if isinstance(e, alt) and getarg(e).is_Add:
+                break
+        else:
+            raise ValueError("Predicate failed, are you sure query returns True for e?")
+
+        return anti(self.value(tform(e)))
+
+    def __call__(self, expr):
+        # alt1 = expr.replace(self.query, self.value)
+        # alt2 = expr.replace(self.query, self.value)
+        # return self.cheapest(alt1, alt2)
+        return expr.replace(self.query, self.value)
+
+
+log1p_opt = FuncOfArgPlusOneOptim(log, log1p, (Pow, lambda pow: pow.base, exp, lambda pow: log(pow.base)*pow.exp))
+
+# log1p_opt = ReplaceOptim(
+#     lambda e: isinstance(e, log),
+#     lambda l: expand_log(l.replace(
+#         log, lambda arg: log(arg.factor())
+#     )).replace(log(_u+1), log1p(_u))
+# )
 
 def create_expand_pow_optimization(limit, *, base_req=lambda b: b.is_symbol):
     """ Creates an instance of :class:`ReplaceOptim` for expanding ``Pow``.
