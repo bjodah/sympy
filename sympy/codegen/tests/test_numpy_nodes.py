@@ -26,6 +26,10 @@ def test_logaddexp():
     was = logaddexp(2, 3)
     assert srepr(was) == srepr(was.simplify())  # cannot simplify with 2, 3
 
+    # Series expansion
+    assert logaddexp(x, y).series(x) == log(exp(x) + exp(y)).series(x)
+    assert logaddexp(x, y).series(y) == log(exp(x) + exp(y)).series(y)
+
 
 def test_logaddexp2():
     lae2_xy = logaddexp2(x, y)
@@ -48,3 +52,7 @@ def test_logaddexp2():
     assert lae2_sum_to_2.simplify() == 1
     was = logaddexp2(x, y)
     assert srepr(was) == srepr(was.simplify())  # cannot simplify with x, y
+
+    # Series expansion
+    assert logaddexp2(x, y).series(x) == log(2**x + 2**y).series(x)
+    assert logaddexp2(x, y).series(y) == log(2**x + 2**y).series(y)

@@ -24,6 +24,9 @@ def test_cosm1():
     assert cosm1(pi/2).simplify() == -1
     assert (1/cos(x) - 1 + cosm1(x)/cos(x)).simplify() == 0
 
+    # Series expansion
+    assert cosm1(x).series(x) == cos(x).series(x)
+
 
 def test_powm1():
     cases = {
@@ -42,3 +45,7 @@ def test_powm1():
     eulers_constant_m1 = powm1(x, 1/log(x))
     assert eulers_constant_m1.rewrite(Pow) == exp(1) - 1
     assert eulers_constant_m1.simplify() == exp(1) - 1
+
+    # Series expansion
+    assert powm1(x, y).series(x) == (x**y - 1).series(x)
+    assert powm1(x, y).series(y) == (x**y - 1).series(y)
