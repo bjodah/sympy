@@ -278,6 +278,9 @@ class log2(Function):
     def _eval_rewrite_as_log(self, arg, **kwargs):
         return _log2(arg)
 
+    def _eval_nseries(self, *args, **kwargs):
+        return _log2(*self.args)._eval_nseries(*args, **kwargs)
+
     _eval_rewrite_as_tractable = _eval_rewrite_as_log
 
 
@@ -376,6 +379,9 @@ class log10(Function):
     def _eval_expand_func(self, **hints):
         return _log10(*self.args)
 
+    def _eval_nseries(self, *args, **kwargs):
+        return _log10(*self.args)._eval_nseries(*args, **kwargs)
+
     def _eval_rewrite_as_log(self, arg, **kwargs):
         return _log10(arg)
 
@@ -425,6 +431,9 @@ class Sqrt(Function):  # 'sqrt' already defined in sympy.functions.elementary.mi
 
     def _eval_expand_func(self, **hints):
         return _Sqrt(*self.args)
+
+    def _eval_nseries(self, *args, **kwargs):
+        return _Sqrt(*self.args)._eval_nseries(*args, **kwargs)
 
     def _eval_rewrite_as_Pow(self, arg, **kwargs):
         return _Sqrt(arg)
@@ -476,6 +485,9 @@ class Cbrt(Function):  # 'cbrt' already defined in sympy.functions.elementary.mi
 
     def _eval_expand_func(self, **hints):
         return _Cbrt(*self.args)
+
+    def _eval_nseries(self, *args, **kwargs):
+        return _Cbrt(*self.args)._eval_nseries(*args, **kwargs)
 
     def _eval_rewrite_as_Pow(self, arg, **kwargs):
         return _Cbrt(arg)

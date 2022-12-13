@@ -2,11 +2,12 @@ from sympy.core.numbers import (Rational, pi)
 from sympy.core.singleton import S
 from sympy.core.symbol import (Symbol, symbols)
 from sympy.functions.elementary.exponential import (exp, log)
+from sympy.functions.elementary.trigonometric import cos
 from sympy.codegen.cfunctions import (
     expm1, log1p, exp2, log2, fma, log10, Sqrt, Cbrt, hypot
 )
 from sympy.core.function import expand_log
-
+from sympy.testing.pytest import slow
 
 def test_expm1():
     # Eval
@@ -32,7 +33,9 @@ def test_expm1():
     assert expm1(42*x).diff(x) - expm1(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert expm1(x).series(x) == exp(x).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert expm1(expr).series(x, x0) == (exp(expr) - 1).series(x, x0)
 
 
 def test_log1p():
@@ -72,8 +75,9 @@ def test_log1p():
     assert log1p(42*x).diff(x) - log1p(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert log1p(x).series(x) == log(1+x).series(x)
-
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert log1p(expr).series(x, x0) == log(1+expr).series(x, x0)
 
 
 def test_exp2():
@@ -90,7 +94,9 @@ def test_exp2():
     assert exp2(42*x).diff(x) - exp2(42*x).diff(x) == 0
 
     # Series expansion
-    assert exp2(x).series(x) == (2**x).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert exp2(expr).series(x, x0) == (2**expr).series(x, x0)
 
 
 def test_log2():
@@ -110,7 +116,9 @@ def test_log2():
     assert log2(42*x).diff() - log2(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert log2(x).series(x) == (log(x)/log(2)).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [1, 0, 2]:
+            assert log2(expr).series(x, x0) == (log(expr)/log(2)).series(x, x0)
 
 
 def test_fma():
@@ -142,7 +150,9 @@ def test_log10():
     assert log10(42*x).diff(x) - log10(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert log10(x).series(x) == (log(x)/log(10)).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert log10(expr).series(x, x0) == (log(expr)/log(10)).series(x, x0)
 
 
 def test_Cbrt():
@@ -156,7 +166,9 @@ def test_Cbrt():
     assert Cbrt(42*x).diff(x) - Cbrt(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert Cbrt(x).series(x) == (x**Rational(1, 3)).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert Cbrt(expr).series(x, x0) == (expr**Rational(1, 3)).series(x, x0)
 
 
 def test_Sqrt():
@@ -170,7 +182,9 @@ def test_Sqrt():
     assert Sqrt(42*x).diff(x) - Sqrt(42*x).expand(func=True).diff(x) == 0
 
     # Series expansion
-    assert Sqrt(x).series(x) == (x**S.Half).series(x)
+    for expr in [x, cos(x**2+1)]:
+        for x0 in [0, 1, 2]:
+            assert Sqrt(expr).series(x, x0) == (expr**S.Half).series(x, x0)
 
 
 def test_hypot():
@@ -186,6 +200,18 @@ def test_hypot():
     assert hypot(17*x, 42*y).diff(x).expand(func=True) - 2*17*17*x*((17*x)**2 + (42*y)**2)**Rational(-1, 2)/2 == 0
     assert hypot(17*x, 42*y).diff(y).expand(func=True) - 2*42*42*y*((17*x)**2 + (42*y)**2)**Rational(-1, 2)/2 == 0
 
+
+@slow
+def test_hypot_series():
+    x, y = symbols('x y', real=True, nonnegative=True)
     # Series expansion
-    assert hypot(x, y).series(x) == ((x**2 + y**2)**S.Half).series(x)
-    assert hypot(x, y).series(y) == ((x**2 + y**2)**S.Half).series(y)
+    for expr_x in [x, 2*x+1]:
+        for around in [0, 1, 2]:
+            a = hypot(expr_x, y).series(x, around).expand(func=True)
+            b = ((expr_x**2 + y**2)**S.Half).series(x, around)
+            assert (a - b).expand().factor().removeO() == 0
+
+            expr_y = expr_x.subs({x: y})
+            a = hypot(x, expr_y).series(y, around).expand(func=True)
+            b = ((x**2 + expr_y**2)**S.Half).series(y, around)
+            assert (a - b).expand().factor().removeO() == 0

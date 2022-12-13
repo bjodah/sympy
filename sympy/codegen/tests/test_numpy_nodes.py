@@ -2,6 +2,7 @@ from itertools import product
 from sympy.core.singleton import S
 from sympy.core.symbol import symbols
 from sympy.functions.elementary.exponential import (exp, log)
+from sympy.functions.elementary.trigonometric import cos
 from sympy.printing.repr import srepr
 from sympy.codegen.numpy_nodes import logaddexp, logaddexp2
 
@@ -27,8 +28,16 @@ def test_logaddexp():
     assert srepr(was) == srepr(was.simplify())  # cannot simplify with 2, 3
 
     # Series expansion
-    assert logaddexp(x, y).series(x) == log(exp(x) + exp(y)).series(x)
-    assert logaddexp(x, y).series(y) == log(exp(x) + exp(y)).series(y)
+    for expr_x in [x, cos(x**2+1)]:
+        for around in [0, 1, 2]:
+            a = logaddexp(expr_x, y).series(x, around).expand(func=True)
+            b = log(exp(expr_x) + exp(y)).series(x, around)
+            assert (a-b).expand().factor().removeO() == 0
+
+            expr_y = expr_x.subs({x: y})
+            a = logaddexp(x, expr_y).series(y, around).expand(func=True)
+            b = log(exp(x) + exp(expr_y)).series(y, around)
+            assert (a-b).expand().factor().removeO() == 0
 
 
 def test_logaddexp2():
@@ -54,5 +63,13 @@ def test_logaddexp2():
     assert srepr(was) == srepr(was.simplify())  # cannot simplify with x, y
 
     # Series expansion
-    assert logaddexp2(x, y).series(x) == log(2**x + 2**y).series(x)
-    assert logaddexp2(x, y).series(y) == log(2**x + 2**y).series(y)
+    for expr_x in [x, cos(x**2+1)]:
+        for around in [0, 1, 2]:
+            a = logaddexp2(expr_x, y).series(x, around).expand(func=True)
+            b = log(2**expr_x + 2**y).series(x, around)
+            assert (a-b).expand().factor().removeO() == 0
+
+            expr_y = expr_x.subs({x: y})
+            a = logaddexp2(x, expr_y).series(y, around).expand(func=True)
+            b = log(2**x + 2**expr_y).series(y, around)
+            assert (a-b).expand().factor().removeO() == 0
