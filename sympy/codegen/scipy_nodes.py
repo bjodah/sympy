@@ -29,8 +29,17 @@ class cosm1(Function):
     def _eval_rewrite_as_cos(self, x, **kwargs):
         return _cosm1(x)
 
+    def _eval_expand_func(self, **hints):
+        return _cosm1(*self.args)
+
     def _eval_evalf(self, *args, **kwargs):
         return self.rewrite(cos).evalf(*args, **kwargs)
+
+    @classmethod
+    def eval(cls, arg):
+        cos_arg = cos.eval(arg)
+        if cos_arg is not None:
+            return cos_arg - S.One
 
     def _eval_simplify(self, **kwargs):
         x, = self.args
@@ -39,6 +48,12 @@ class cosm1(Function):
             return candidate
         else:
             return cosm1(x)
+
+    def _eval_is_real(self):
+        return self.args[0].is_real
+
+    def _eval_is_finite(self):
+        return True
 
 
 def _powm1(x, y, *, evaluate=True):

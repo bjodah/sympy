@@ -23,11 +23,17 @@ def test_cosm1():
     assert cosm1(3.14).simplify() == cosm1(3.14)  # cannot simplify with 3.14
     assert cosm1(pi/2).simplify() == -1
     assert (1/cos(x) - 1 + cosm1(x)/cos(x)).simplify() == 0
+    assert str(cosm1(1)) == "cosm1(1)"
 
     # Series expansion
     for expr in [x, cos(x**2+1)]:
         for x0 in [0, 1, 2]:
-            assert cosm1(expr).series(x, x0) == (cos(expr) - 1).series(x, x0)
+            a = cosm1(expr).series(x, x0)
+            b = (cos(expr) - 1).series(x, x0)
+            if x0 == 0 and expr == x:
+                assert a == b
+            else:
+                assert (a - b).expand(func=True).removeO() == 0
 
 
 def test_powm1():
@@ -51,6 +57,11 @@ def test_powm1():
     # Series expansion
     for expr_x in [x, cos(x**2+1)]:
         for around in [0, 1, 2]:
-            assert powm1(expr_x, y).series(x, around) == (expr_x**y - 1).series(x, around)
+            a = powm1(expr_x, y).series(x, around).expand(func=True)
+            b = (expr_x**y - 1).series(x, around)
+            assert a == b
+
             expr_y = expr_x.subs({x: y})
-            assert powm1(x, expr_y).series(y, around) == (x**expr_y - 1).series(y, around)
+            a = powm1(x, expr_y).series(y, around).expand(func=True)
+            b = (x**expr_y - 1).series(y, around)
+            assert a == b
